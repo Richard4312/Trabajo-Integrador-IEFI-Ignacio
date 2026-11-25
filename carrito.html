@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cupper Shop Detail | Carrito</title>
+    <link rel="stylesheet" href="recursos/css/catalogo.css">
+    <link rel="stylesheet" href="recursos/css/carrito.css">
+</head>
+
+<body>
+    <header class="cabecera-principal">
+        <a href="./index.html">
+            <img src="./recursos/imagenes/logo.png" alt="Logo Cupper Shop Detail" width="150">
+        </a>
+
+        <nav>
+            <a href="./index.html">Inicio</a>
+            <a href="./catalogo.html">Catálogo</a>
+            <a href="./contacto.html">Contacto</a>
+            <a href="./carrito.html" class="carrito">
+                Carrito (<span id="contador">0</span>)
+            </a>
+        </nav>
+    </header>
+
+    <main class="contenido_principal">
+        <h1>Carrito</h1>
+
+        <section>
+            <h2>Tus productos</h2>
+            <div id="contenedor-carrito"></div>
+
+            <div id="resumen" hidden>
+                <span>Total: <span id="total">$0</span></span>
+                <div class="acciones-carrito">
+                    <button type="button" id="btn-vaciar" class="btn-secundario">Vaciar carrito</button>
+                    <a href="./catalogo.html" class="btn-primario">Seguir comprando</a>
+                </div>
+            </div>
+
+            <form id="form-compra" class="form-compra" hidden>
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="tuemail@ejemplo.com" required autocomplete="email">
+                <button type="submit" id="btn-finalizar" class="btn-primario">Finalizar Compra</button>
+            </form>
+            <p id="estado-compra" role="status" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <footer>
+        <ul>
+            <li>
+                <a class="contacto-whatsapp" href="https://wa.me?tel=1111111" aria-label="ir a whatsapp"> Escribinos por
+                    WhatsApp</a>
+            </li>
+            <li>
+                Córdoba, Argentina
+            </li>
+        </ul>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4.4.1/dist/email.min.js"></script>
+    <script>
+
+
+        const CLAVE = "carrito";
+
+        const EMAILJS_PUBLIC_KEY = "ABSZftRn0GgSLSY4c";
+        const EMAILJS_SERVICE_ID = "service_h78fqd9";
+        const EMAILJS_TEMPLATE_ID = "template_y95g0zt";
+
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+        const contenedor = document.getElementById("contenedor-carrito");
+        const resumen = document.getElementById("resumen");
+        const totalEl = document.getElementById("total");
+        const contadorEl = document.getElementById("contador");
+
+        const formCompra = document.getElementById("form-compra");
+        const inputEmail = document.getElementById("email");
+        const btnFinalizar = document.getElementById("btn-finalizar");
+        const estadoCompra = document.getElementById("estado-compra");
+
+        const formatoPrecio = new Intl.NumberFormat("es-AR", {
+            style: "currency",
+            currency: "ARS"
+        });
+
+        function leerCarrito() {
+            try {
+                const datos = JSON.parse(localStorage.getItem(CLAVE));
+                return Array.isArray(datos) ? datos : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function guardarCarrito(carrito) {
+            localStorage.setItem(CLAVE, JSON.stringify(carrito));
+        }
+
+        function cambiarCantidad(id, delta) {
+            const carrito = leerCarrito();
+            const item = carrito.find(p => String(p.id) === String(id));
+            if (!item) return;
+            item.cantidad += delta;
+            guardarCarrito(carrito.filter(p => p.cantidad > 0));
+            render();
+        }
+
+        function quitar(id) {
+            guardarCarrito(leerCarrito().filter(p => String(p.id) !== String(id)));
+            render();
+        }
+
+        function crearItem(p) {
+            const fila = document.createElement("article");
+            fila.className = "item-carrito";
+
+            const img = document.createElement("img");
+            img.src = p.imagen || "";
+            img.alt = p.nombre;
+
+            const nombre = document.createElement("strong");
+            nombre.className = "item-nombre";
+            nombre.textContent = p.nombre;
+
+            const precio = document.createElement("span");
+            precio.className = "item-precio";
+            precio.textContent = formatoPrecio.format(p.precio);
+
+            const cant = document.createElement("div");
+            cant.className = "cantidad";
+            const menos = document.createElement("button");
+            menos.type = "button";
+            menos.className = "btn-cantidad";
+            menos.textContent = "−";
+            menos.setAttribute("aria-label", "Quitar una unidad de " + p.nombre);
+            menos.addEventListener("click", () => cambiarCantidad(p.id, -1));
+            const num = document.createElement("span");
+            num.textContent = p.cantidad;
+            const mas = document.createElement("button");
+            mas.type = "button";
+            mas.className = "btn-cantidad";
+            mas.textContent = "+";
+            mas.setAttribute("aria-label", "Agregar una unidad de " + p.nombre);
+            mas.addEventListener("click", () => cambiarCantidad(p.id, 1));
+            cant.append(menos, num, mas);
+
+            const subtotal = document.createElement("span");
+            subtotal.className = "item-subtotal";
+            subtotal.textContent = formatoPrecio.format(p.precio * p.cantidad);
+
+            const eliminar = document.createElement("button");
+            eliminar.type = "button";
+            eliminar.className = "btn-eliminar";
+            eliminar.textContent = "Eliminar";
+            eliminar.addEventListener("click", () => quitar(p.id));
+
+            fila.append(img, nombre, precio, cant, subtotal, eliminar);
+            return fila;
+        }
+
+        function render() {
+            const carrito = leerCarrito();
+            contenedor.replaceChildren();
+
+            const unidades = carrito.reduce((s, p) => s + p.cantidad, 0);
+            contadorEl.textContent = unidades;
+
+            if (carrito.length === 0) {
+                const vacio = document.createElement("div");
+                vacio.className = "carrito-vacio";
+                vacio.textContent = "Tu carrito está vacío. ";
+                const link = document.createElement("a");
+                link.href = "./catalogo.html";
+                link.className = "btn-primario";
+                link.textContent = "Ir al catálogo";
+                vacio.append(link);
+                contenedor.append(vacio);
+                resumen.hidden = true;
+                formCompra.hidden = true;
+                return;
+            }
+
+            carrito.forEach(p => contenedor.append(crearItem(p)));
+            totalEl.textContent = formatoPrecio.format(
+                carrito.reduce((s, p) => s + p.precio * p.cantidad, 0)
+            );
+            resumen.hidden = false;
+            formCompra.hidden = false;
+        }
+
+        document.getElementById("btn-vaciar").addEventListener("click", () => {
+            guardarCarrito([]);
+            render();
+        });
+
+        // Mantiene sincronizado si se modifica el carrito en otra pestaña
+        window.addEventListener("storage", e => { if (e.key === CLAVE) render(); });
+
+        function mostrarGracias() {
+            contenedor.replaceChildren();
+            const gracias = document.createElement("div");
+            gracias.className = "carrito-vacio compra-exitosa";
+            const titulo = document.createElement("strong");
+            titulo.textContent = "¡Gracias por su compra!";
+            const detalle = document.createElement("span");
+            detalle.textContent = "Te enviamos la confirmación por email.";
+            const link = document.createElement("a");
+            link.href = "./catalogo.html";
+            link.className = "btn-primario";
+            link.textContent = "Volver al catálogo";
+            gracias.append(titulo, detalle, link);
+            contenedor.append(gracias);
+            resumen.hidden = true;
+            formCompra.hidden = true;
+        }
+
+        formCompra.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const carrito = leerCarrito();
+            if (carrito.length === 0) return;
+
+            const total = carrito.reduce((s, p) => s + p.precio * p.cantidad, 0);
+            const detalle = carrito
+                .map(p => `• ${p.nombre} x${p.cantidad} — ${formatoPrecio.format(p.precio * p.cantidad)}`)
+                .join("<br>");
+
+            btnFinalizar.disabled = true;
+            btnFinalizar.textContent = "Enviando...";
+            estadoCompra.textContent = "";
+            estadoCompra.className = "";
+
+            try {
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                    to_email: inputEmail.value.trim(),
+                    detalle,
+                    total: formatoPrecio.format(total)
+                });
+
+                guardarCarrito([]);
+                contadorEl.textContent = "0";
+                formCompra.reset();
+                mostrarGracias();
+            } catch (error) {
+                console.error("Error al enviar el email:", error);
+                estadoCompra.textContent = "No pudimos enviar el email. Revisá la dirección e intentá de nuevo.";
+                estadoCompra.className = "estado-error";
+            } finally {
+                btnFinalizar.disabled = false;
+                btnFinalizar.textContent = "Finalizar Compra";
+            }
+        });
+
+        render();
+    </script>
+</body>
+
+</html>
