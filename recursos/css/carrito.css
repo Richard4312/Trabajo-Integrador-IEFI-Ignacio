@@ -1,9 +1,3 @@
-/* =========================================================
-   carrito.css
-   Se carga DESPUÉS de catalogo.css y usa sus variables (:root).
-   Incluye: botón "Carrito" del header (catalogo.html y carrito.html)
-   y estilos propios de la página carrito.html.
-   ========================================================= */
 
 /* ---- botón / enlace "Carrito" del header ---- */
 .cabecera-principal nav {
